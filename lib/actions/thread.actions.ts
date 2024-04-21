@@ -66,7 +66,7 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
 
         const posts = await postsQuery.exec();
 
-        const isNext  = totalPostsCount > skipAmount + posts.length;
+        const isNext = totalPostsCount > skipAmount + posts.length;
 
         return { posts, isNext };
 
@@ -77,7 +77,7 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
 }
 
 export async function fetchThreadById(id: string) {
-    
+
     connectToDB();
 
     try {
@@ -110,9 +110,49 @@ export async function fetchThreadById(id: string) {
                 ]
             }).exec();
 
-            return thread;
+        return thread;
     } catch (error: any) {
         throw new Error('Error fetching the thread: ', error.message);
+    }
+
+}
+
+export async function addCommentToThread(
+    threadId: string,
+    commentText: string,
+    userId: string,
+    path: string
+) {
+
+    connectToDB();
+
+    try {
+        // Adding a comment
+
+        // Find original thread
+        const originalThread = await Thread.findById(threadId);
+        if (!originalThread) throw new Error("Thread not found");
+
+        // If found, create a new thread
+        const commentThread = new Thread({
+            text: commentText,
+            author: userId,
+            parentId: threadId
+        });
+
+        // Save the new thread
+        const savedCommentThread = await commentThread.save();
+
+        // Update the original thread to include the new comment
+        originalThread.children.push(savedCommentThread._id);
+
+        // Save original thread
+        await originalThread.save();
+
+        revalidatePath(path);
+
+    } catch (error: any) {
+        throw new Error(`Error adding comment to thread: ${error.message}`);
     }
 
 }
